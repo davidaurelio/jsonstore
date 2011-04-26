@@ -108,9 +108,7 @@ JsonStore.prototype = {
         var subscriptions = this._subscriptions, undef;
 
         var segments = path.split("."), currentPath = path, lastSegment;
-        var created;
-        while (!subscriptions.hasOwnProperty(currentPath)) {
-            created = true;
+        while (segments.length && !subscriptions.hasOwnProperty(currentPath)) {
             subscriptions[currentPath] = {
                 callbacks: [],
                 children: lastSegment ? [lastSegment] : []
@@ -120,13 +118,17 @@ JsonStore.prototype = {
             currentPath = segments.join(".");
         }
 
-        if (created && segments.length) {
-            lastSegment = segments.pop();
-            currentPath = segments.join(".");
-            subscriptions[currentPath].children.push(lastSegment);
+        if (lastSegment != null && segments.length) {
+            var children = subscriptions[currentPath].children;
+            if (children.indexOf(lastSegment) === -1) {
+                children.push(lastSegment);
+            }
         }
 
-        subscriptions[path].callbacks.push(callback);
+        var callbacks = subscriptions[path].callbacks;
+        if (callbacks.indexOf(callback) === -1) {
+            callbacks.push(callback);
+        }
     },
 
     unsubscribe: function unsubscribe(path, callback) {
