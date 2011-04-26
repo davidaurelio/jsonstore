@@ -132,14 +132,12 @@ JsonStore.prototype = {
     },
 
     unsubscribe: function unsubscribe(path, callback) {
-        var callbacks = this._getCallbacks(path)[0];
-        if (!callbacks) { return false; }
-
-        var i = callbacks.indexOf(callback);
-        if (i === -1) { return false; }
-
-        callbacks.splice(i, 1);
-        return true;
+        var subscription = this._subscriptions[path];
+        var callbacks = subscription && subscription.callbacks;
+        var idx = callbacks && callbacks.indexOf(callback) || -1;
+        if (idx !== -1) {
+            callbacks.splice(idx, 1);
+        }
     },
 
     update: function update(path, data) {
