@@ -4,8 +4,25 @@ function JsonStore() {
 }
 
 JsonStore.prototype = {
-    _clone: function(obj) {
-        return JSON.parse(JSON.stringify(obj));
+    _clone: function _clone(obj) {
+        if (obj !== null && typeof obj === "object") {
+            if (obj instanceof Array) {
+                var cloned = [];
+                for (var i = 0, len = obj.length; i < len; i++) {
+                    cloned[i] = _clone(obj[i]);
+                }
+                return cloned;
+            }
+
+            var cloned = {};
+            for (var key in obj) {
+                if (obj.hasOwnProperty(key)) {
+                    cloned[key] = _clone(obj[key]);
+                }
+            }
+            return cloned;
+        }
+        return obj;
     },
 
     _get: function(path, create) {
