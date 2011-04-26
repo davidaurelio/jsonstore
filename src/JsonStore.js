@@ -77,6 +77,26 @@ JsonStore.prototype = {
         }
     },
 
+    _update: function _set(objTo, onKey, from, path, notifications) {
+        var to = toObj[toKey];
+
+        if (to instanceof Array && from instanceof Array) {
+            toObj[toKey] = to.concat(from);
+            notifications.exact.push(path);
+        }
+        else if (from !== null && to !== null && typeof to == "object" && typeof from == "object") {
+            for (var key in from) {
+                if (from.hasOwnProperty(key)) {
+                    _set(to, key, from[key], path + "." + key, notifications)
+                }
+            }
+        }
+        else {
+            toObj[toKey] = from;
+            notifications.subtree.push(path);
+        }
+    },
+
     set: function(path, value) {
         var dir = path.split("."), key = dir.pop();
         dir = dir.length ? dir.join(".") : null;
@@ -153,5 +173,14 @@ JsonStore.prototype = {
         } while ((spec = queue.shift()));
 
         this._notify(notifySubtree, notify);
+    },
+
+    update2: function(path, data) {
+        data = this._clone(data);
+        var dir = path.split("."), key = dir.pop();
+        dir = dir.length ? dir.join(".") : null;
+
+        var notifications = {exact: [], subtree: []};
+        this._update(this._get(dir, true), key, data, path, notifications);
     }
 };
