@@ -4,6 +4,11 @@ function JsonStore() {
 }
 
 JsonStore.prototype = {
+    SubStore: function SubStore(store, path) {
+        this._store = store;
+        this._path = "." + path;
+    },
+
     _clone: function _clone(obj) {
         if (obj !== null && typeof obj === "object") {
             if (obj instanceof Array) {
@@ -97,6 +102,10 @@ JsonStore.prototype = {
         }
     },
 
+    getSubStore: function(path) {
+        return new this.SubStore(this, path);
+    },
+
     set: function set(path, value) {
         var dir = path.split("."), key = dir.pop();
         dir = dir.length ? dir.join(".") : null;
@@ -185,5 +194,23 @@ JsonStore.prototype = {
 
         var notifications = {exact: [], subtree: []};
         this._update(this._get(dir, true), key, data, path, notifications);
+    }
+};
+
+JsonStore.prototype.SubStore.prototype = {
+    set: function(path, value) {
+        return this._store.set(this._path + path, value);
+    },
+
+    subscribe: function(path, callback) {
+        return this._store.subscribe(this._path + path, callback);
+    },
+
+    unsubscribe: function(path, callback) {
+        return this._store.unsubscribe(this._path + path, callback);
+    },
+
+    update: function(path, data) {
+        return this._store.update(this._path + path, data);
     }
 };
