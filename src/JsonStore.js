@@ -58,9 +58,19 @@ JsonStore.prototype = {
         }
     ),
 
-    _notify: function _notify(subtree, exact) {
-        return;
-        var clone = this._clone, path, data, callbacks, children;
+    _notify: function _notify(paths) {
+        var clone = this._clone, subscriptions = this._subscriptions;
+
+        for (var i = 0, iLen = paths.length; i < iLen; i++) {
+            var path = paths[i];
+            do {
+                var sub = subscriptions[path];
+                var callbacks = sub && sub.callbacks;
+                var data = this._get(path);
+
+                path = path.replace(/\.[^.]*$/);
+            } while (path.indexOf(".") !== -1);
+        }
 
         var specs = [];
         for (var i = 0, len = subtree && subtree.length; i < len; i++) {
