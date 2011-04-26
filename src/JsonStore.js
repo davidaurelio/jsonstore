@@ -129,6 +129,9 @@ JsonStore.prototype = {
         if (callbacks.indexOf(callback) === -1) {
             callbacks.push(callback);
         }
+
+        var data = this._clone(this._get(path));
+        setTimeout(function() { callback(data) }, 0);
     },
 
     unsubscribe: function unsubscribe(path, callback) {
