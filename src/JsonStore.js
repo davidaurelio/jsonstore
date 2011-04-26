@@ -25,7 +25,7 @@ JsonStore.prototype = {
         return obj;
     },
 
-    _get: function(path, create) {
+    _get: function _get(path, create) {
         if (path == null) { return this._data; }
         var segments = path.split("."), current = this._data;
         for (var i = 0, len = path.length; i < len; i++) {
@@ -42,7 +42,7 @@ JsonStore.prototype = {
 
     _keys: (Object.keys ?
         Object.keys :
-        function(obj) {
+        function _keys(obj) {
             var keys = [], i = 0;
             for (var key in obj) {
                 if (obj.hasOwnProperty(key)) {
@@ -53,7 +53,7 @@ JsonStore.prototype = {
         }
     ),
 
-    _notify: function(subtree, exact) {
+    _notify: function _notify(subtree, exact) {
         return;
         var clone = this._clone, path, data, callbacks, children;
 
@@ -77,7 +77,7 @@ JsonStore.prototype = {
         }
     },
 
-    _update: function _set(objTo, onKey, from, path, notifications) {
+    _update: function _update(toObj, toKey, from, path, notifications) {
         var to = toObj[toKey];
 
         if (to instanceof Array && from instanceof Array) {
@@ -97,14 +97,14 @@ JsonStore.prototype = {
         }
     },
 
-    set: function(path, value) {
+    set: function set(path, value) {
         var dir = path.split("."), key = dir.pop();
         dir = dir.length ? dir.join(".") : null;
         this._get(dir, true)[key] = this._clone(value);
         this._notify([path]);
     },
 
-    subscribe: function(path, callback) {
+    subscribe: function subscribe(path, callback) {
         var subscriptions = this._subscriptions, undef;
 
         var segments = path.split("."), currentPath = path, lastSegment;
@@ -129,7 +129,7 @@ JsonStore.prototype = {
         subscriptions[path].callbacks.push(callback);
     },
 
-    unsubscribe: function(path, callback) {
+    unsubscribe: function unsubscribe(path, callback) {
         var callbacks = this._getCallbacks(path)[0];
         if (!callbacks) { return false; }
 
@@ -140,7 +140,7 @@ JsonStore.prototype = {
         return true;
     },
 
-    update: function(path, data) {
+    update: function update(path, data) {
         var keys = this._keys;
         data = this._clone(data);
 
@@ -175,7 +175,7 @@ JsonStore.prototype = {
         this._notify(notifySubtree, notify);
     },
 
-    update2: function(path, data) {
+    update2: function update2(path, data) {
         data = this._clone(data);
         var dir = path.split("."), key = dir.pop();
         dir = dir.length ? dir.join(".") : null;
