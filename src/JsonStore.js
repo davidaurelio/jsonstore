@@ -87,7 +87,7 @@ JsonStore.prototype = {
         else if (from !== null && to !== null && typeof to == "object" && typeof from == "object") {
             for (var key in from) {
                 if (from.hasOwnProperty(key)) {
-                    _set(to, key, from[key], path + "." + key, notifications)
+                    _update(to, key, from[key], path + "." + key, notifications)
                 }
             }
         }
