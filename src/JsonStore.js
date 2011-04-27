@@ -30,6 +30,10 @@ JsonStore.prototype = {
         return obj;
     },
 
+    _defer: function(func, param) {
+        setTimeout(function() { func(param); }, 0);
+    },
+
     _get: function _get(path, create) {
         if (path == null) { return this._data; }
         var segments = path.split("."), current = this._data;
@@ -60,35 +64,26 @@ JsonStore.prototype = {
 
     _notify: function _notify(paths) {
         var clone = this._clone, subscriptions = this._subscriptions;
-
         for (var i = 0, iLen = paths.length; i < iLen; i++) {
-            var path = paths[i];
+            var path = currentPath = paths[i];
             do {
                 var sub = subscriptions[path];
                 var callbacks = sub && sub.callbacks;
-                var data = this._get(path);
+                var data = this._get(currentPath);
 
-                path = path.replace(/\.[^.]*$/);
-            } while (path.indexOf(".") !== -1);
+                for (var j = 0, callback; (callback = callbacks[j]); j++) {
+                    this._defer(callback, {path: path, data: clone(data)});
+                }
+
+                currentPath = currentPath.replace(/\.[^.]*$/);
+            } while (currentPath.indexOf(".") !== -1);
         }
+    },
 
-        var specs = [];
-        for (var i = 0, len = subtree && subtree.length; i < len; i++) {
-            specs[i] = this._getSubscriptions(subtree[i]);
-        }
-
-        var s;
-        while ((s = specs.shift())) {
-
-        }
-
-        for (i = 0, len = exact; i < len; i++) {
-            path = exact[i];
-            var callbacks = this._getSubscriptions(path)[0];
-            data = this._get(path);
-            for (var j = 0, lenJ = callbacks && callbacks.length; j < lenJ; j++) {
-                callbacks[j](clone(data));
-            }
+    _notifySubtree: function _notifySubtree(paths) {
+        var clone = this._clone, subscriptions = this._subscriptions;
+        for (var i = 0, iLen = paths.length; i < iLen; i++) {
+            var path;
         }
     },
 
