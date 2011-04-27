@@ -67,21 +67,52 @@ JsonStore.prototype = {
         }
     ),
 
-    _notify: function _notify(paths) {
+    _notify: function _notify(withSubtree, withoutSubtree) {
+        var notified = [];
+        var withSubtreeLen = withSubtree.length;
+        var queue = withSubtree.concat(withoutSubtree);
         var subscriptions = this._subscriptions;
-        for (var i = 0, iLen = paths.length; i < iLen; i++) {
-            var path = currentPath = paths[i];
-            do {
-                var sub = subscriptions[path];
-                var callbacks = sub && sub.callbacks;
-                var data = this._get(currentPath);
 
-                for (var j = 0, callback; (callback = callbacks[j]); j++) {
-                    this._defer(callback, {path: path, data: this._clone(data)});
+        for (var path, i = 0; (path = queue.shift()) !== null; i++) {
+            // get subscriptions for path
+            var subs = subscriptions[currentPath];
+            if (!subs || notified.indexOf(path) !== -1) { continue; }
+
+            // enqueue children if subtree is to be notified
+            if (i < withSubtreeLen) {
+                queue.push.apply(queue, children);
+            }
+
+            // defer callbacks for path
+            var callbacks = subs.callbacks;
+            var jLen = callbacks.length, data = jLen && this._get(path);
+            for (var j = 0; j < jLen ; j += 2) {
+                this._defer(callbacks[j], {
+                    path: path.slice(callbacks[j+1]),
+                    data: this._clone(data)
+                });
+            }
+            notified.push(path);
+
+            // invoke callbacks for parent paths, if necessary
+            var parentPath = path;
+            do {
+                parentPath = parentPath.replace(/[.][^.]*$/);
+                if (notified.indexOf(parentPath) !== -1) { break; }
+
+                var subs = subscriptions[parentPath];
+                var callbacks = subs && subs.callbacks;
+                var jLen = callbacks && callbacks.length;
+                var data = jLen && this._get(parentPath);
+                for (var j = 0; j < jLen; j += 2) {
+                    this._defer(callbacks[j], {
+                        path: path.slice(callbacks[j+1]),
+                        data: this._clone(data)
+                    });
                 }
 
-                currentPath = currentPath.replace(/\.[^.]*$/);
-            } while (currentPath.indexOf(".") !== -1);
+                notified.push(parentPath);
+            } while (parentPath.indexOf(".") !== -1);
         }
     },
 
