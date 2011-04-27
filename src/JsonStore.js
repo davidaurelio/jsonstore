@@ -155,6 +155,9 @@ JsonStore.prototype = {
     },
 
     subscribe: function subscribe(path, callback, _cutLeadingChars) {
+        if (typeof callback !== "function") {
+            throw Error("Only functions supported");
+        }
         var subscriptions = this._subscriptions, undef;
 
         var segments = path.split("."), currentPath = path, lastSegment;
@@ -185,6 +188,9 @@ JsonStore.prototype = {
     },
 
     unsubscribe: function unsubscribe(path, callback) {
+        if (typeof callback !== "function") {
+            throw Error("Only functions supported");
+        }
         var subscription = this._subscriptions[path];
         var callbacks = subscription && subscription.callbacks;
         var idx = callbacks && callbacks.indexOf(callback) || -1;
