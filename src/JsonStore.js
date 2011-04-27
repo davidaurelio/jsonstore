@@ -9,25 +9,30 @@ JsonStore.prototype = {
         this._path = "." + path;
     },
 
-    _clone: function _clone(obj) {
-        if (obj !== null && typeof obj === "object") {
-            if (obj instanceof Array) {
-                var cloned = [];
-                for (var i = 0, len = obj.length; i < len; i++) {
-                    cloned[i] = _clone(obj[i]);
-                }
-                return cloned;
+    _cloneObj: function _cloneObj(obj) {
+        if (obj instanceof Array) {
+            var theClone = [];
+            for (var i = 0, len = obj.length; i < len; i++) {
+                var value = obj[i];
+                theClone[i] = value !== null && typeof value === "object" ?
+                    _cloneObj(value) : value;
             }
-
-            var cloned = {};
+        }
+        else {
+            var theClone = {};
             for (var key in obj) {
                 if (obj.hasOwnProperty(key)) {
-                    cloned[key] = _clone(obj[key]);
+                    var value = obj[key];
+                    theClone[key] = value !== null && typeof value === "object" ?
+                        _cloneObj(value) : value;
                 }
             }
-            return cloned;
         }
-        return obj;
+        return theClone;
+    },
+
+    _clone: function _clone(obj) {
+        return this._cloneObj({o: obj}).o;
     },
 
     _defer: function(func, param) {
@@ -63,7 +68,7 @@ JsonStore.prototype = {
     ),
 
     _notify: function _notify(paths) {
-        var clone = this._clone, subscriptions = this._subscriptions;
+        var subscriptions = this._subscriptions;
         for (var i = 0, iLen = paths.length; i < iLen; i++) {
             var path = currentPath = paths[i];
             do {
@@ -72,7 +77,7 @@ JsonStore.prototype = {
                 var data = this._get(currentPath);
 
                 for (var j = 0, callback; (callback = callbacks[j]); j++) {
-                    this._defer(callback, {path: path, data: clone(data)});
+                    this._defer(callback, {path: path, data: this._clone(data)});
                 }
 
                 currentPath = currentPath.replace(/\.[^.]*$/);
@@ -81,7 +86,7 @@ JsonStore.prototype = {
     },
 
     _notifySubtree: function _notifySubtree(paths) {
-        var clone = this._clone, subscriptions = this._subscriptions;
+        var subscriptions = this._subscriptions;
         for (var i = 0, iLen = paths.length; i < iLen; i++) {
             var path;
         }
