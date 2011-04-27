@@ -123,7 +123,7 @@ JsonStore.prototype = {
         this._notify([path]);
     },
 
-    subscribe: function subscribe(path, callback) {
+    subscribe: function subscribe(path, callback, _cutLeadingChars) {
         var subscriptions = this._subscriptions, undef;
 
         var segments = path.split("."), currentPath = path, lastSegment;
@@ -146,7 +146,7 @@ JsonStore.prototype = {
 
         var callbacks = subscriptions[path].callbacks;
         if (callbacks.indexOf(callback) === -1) {
-            callbacks.push(callback);
+            callbacks.push(callback, _cutLeadingChars);
         }
 
         var data = this._clone(this._get(path));
@@ -158,7 +158,7 @@ JsonStore.prototype = {
         var callbacks = subscription && subscription.callbacks;
         var idx = callbacks && callbacks.indexOf(callback) || -1;
         if (idx !== -1) {
-            callbacks.splice(idx, 1);
+            callbacks.splice(idx, 2);
         }
     },
 
@@ -213,7 +213,8 @@ JsonStore.prototype.SubStore.prototype = {
     },
 
     subscribe: function(path, callback) {
-        return this._store.subscribe(this._path + path, callback);
+        var p = this._path, l = p.length;
+        return this._store.subscribe(p, callback, l);
     },
 
     unsubscribe: function(path, callback) {
