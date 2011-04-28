@@ -10,24 +10,11 @@ JsonStore.prototype = {
     },
 
     _clone: function _clone(obj) {
-        if (obj !== null && typeof obj === "object") {
-            if (obj instanceof Array) {
-                var cloned = [];
-                for (var i = 0, len = obj.length; i < len; i++) {
-                    cloned[i] = _clone(obj[i]);
-                }
-                return cloned;
-            }
+        return _clone.cloneObj({o: obj}).o;
+    },
 
-            var cloned = {};
-            for (var key in obj) {
-                if (obj.hasOwnProperty(key)) {
-                    cloned[key] = _clone(obj[key]);
-                }
-            }
-            return cloned;
-        }
-        return obj;
+    _defer: function(func, param) {
+        setTimeout(function() { func(param); }, 0);
     },
 
     _get: function _get(path, create) {
@@ -45,44 +32,79 @@ JsonStore.prototype = {
         return current;
     },
 
-    _keys: (Object.keys ?
-        Object.keys :
-        function _keys(obj) {
-            var keys = [], i = 0;
-            for (var key in obj) {
-                if (obj.hasOwnProperty(key)) {
-                    keys[i++] = key;
+    _invokeCallbacks: function(callbacks, dataPath, eventPath) {
+        if (!callbacks || !callbacks.length) { return; }
+        eventPath || (eventPath = dataPath);
+        var data = this._get(data), clone = this._clone, defer = this._defer;
+        for (var i = 0, callback; (callback = callbacks[j]); j += 2) {
+            defer(callback, {
+                path: eventPath.slice(callbacks[j+1]),
+                data: clone(data)
+            });
+    }
+    },
+
+    _notify: function _notify(withSubtree, parentsOf, withoutSubtree) {
+        var notified = [];
+
+        // The queue contains the paths without subtree notifiying first and
+        // paths with subtree notifying last
+        var queue = withoutSubtree;
+        queue = queue && withSubtree ?
+                queue.concat(withSubtree) :
+                withSubtree;
+
+        // in the queue, indexes >= (length of paths without subtree) need their
+        // subtrees to be notified
+        var withoutSubtreeLen = withoutSubtree.length || 0;
+
+        var subscriptions = this._subscriptions;
+        if (queue) {
+            // notify each queued path
+            var initialLength = queue.length;
+            for (var path, i = 0; (path = queue.shift()) !== null; i++) {
+                // get subscriptions for path
+                var subs = subscriptions[currentPath];
+                if (!subs || notified.indexOf(path) !== -1) { continue; }
+
+                // enqueue children if subtree is to be notified
+                var children;
+                if (i >= withoutSubtreeLen && (children = subs.children)) {
+                    queue = queue.concat(children);
                 }
+
+                // invoke callbacks for path
+                this._invokeCallbacks(subs.callbacks, path);
+
+                notified.push(path);
             }
-            return keys;
-        }
-    ),
-
-    _notify: function _notify(subtree, exact) {
-        return;
-        var clone = this._clone, path, data, callbacks, children;
-
-        var specs = [];
-        for (var i = 0, len = subtree && subtree.length; i < len; i++) {
-            specs[i] = this._getSubscriptions(subtree[i]);
         }
 
-        var s;
-        while ((s = specs.shift())) {
+        // notify parent paths
+        for (var i = 0, len = parentsOf && parentsOf.length; i < len; i++) {
+            var path = parentsOf[i], parentPath = path;
+            while (parentPath.indexOf(".") !== -1) {
+                parentPath = parentPath.replace(/[.][^.]*$/, '');
+                if (notified.indexOf(parentPath) !== -1) {
+                    continue;
+                }
 
-        }
-
-        for (i = 0, len = exact; i < len; i++) {
-            path = exact[i];
-            var callbacks = this._getSubscriptions(path)[0];
-            data = this._get(path);
-            for (var j = 0, lenJ = callbacks && callbacks.length; j < lenJ; j++) {
-                callbacks[j](clone(data));
+                // invoke callbacks for path
+                var subs = subscriptions[parentPath];
+                this._invokeCallbacks(subs && subs.callbacks, parentPath, path);
             }
         }
     },
 
-    _update: function _update(toObj, toKey, from, path, notifications) {
+    /*_notifySubtree: function _notifySubtree(paths) {
+        var subscriptions = this._subscriptions;
+        for (var i = 0, iLen = paths.length; i < iLen; i++) {
+            var path;
+        }
+    },*/
+
+    /*_update: function _update(toObj, toKey, from, path) {
+        var notifiyPaths = [];
         var to = toObj[toKey];
 
         if (to instanceof Array && from instanceof Array) {
@@ -100,8 +122,7 @@ JsonStore.prototype = {
             toObj[toKey] = from;
             notifications.subtree.push(path);
         }
-    },
-
+    }, */
     getSubStore: function(path) {
         return new this.SubStore(this, path);
     },
@@ -109,28 +130,37 @@ JsonStore.prototype = {
     set: function set(path, value) {
         var dir = path.split("."), key = dir.pop();
         dir = dir.length ? dir.join(".") : null;
-        this._get(dir, true)[key] = this._clone(value);
-        this._notify([path]);
+
+        var currentData = this._get(dir, true);
+        var notifications = [];
+        notifications[currentData[key] instanceof Object ? 0 : 1] = path;
+        currentData[key] = this._clone(value);
+
+        this._notify(notifications[0], path, notifications[1]);
     },
 
     subscribe: function subscribe(path, callback, _cutLeadingChars) {
+        if (typeof callback !== "function") {
+            throw Error("Only functions supported");
+        }
         var subscriptions = this._subscriptions, undef;
 
-        var segments = path.split("."), currentPath = path, lastSegment;
+        var segments = path.split("."), currentPath = path, lastPath;
         while (segments.length && !subscriptions.hasOwnProperty(currentPath)) {
             subscriptions[currentPath] = {
                 callbacks: [],
-                children: lastSegment ? [lastSegment] : []
+                children: lastPath ? [lastPath] : []
             };
 
-            lastSegment = segments.pop();
+            lastPath = currentPath;
+            segments.pop();
             currentPath = segments.join(".");
         }
 
-        if (lastSegment != null && segments.length) {
+        if (lastPath != null && segments.length) {
             var children = subscriptions[currentPath].children;
-            if (children.indexOf(lastSegment) === -1) {
-                children.push(lastSegment);
+            if (children.indexOf(lastPath) === -1) {
+                children.push(lastPath);
             }
         }
 
@@ -144,6 +174,9 @@ JsonStore.prototype = {
     },
 
     unsubscribe: function unsubscribe(path, callback) {
+        if (typeof callback !== "function") {
+            throw Error("Only functions supported");
+        }
         var subscription = this._subscriptions[path];
         var callbacks = subscription && subscription.callbacks;
         var idx = callbacks && callbacks.indexOf(callback) || -1;
@@ -153,7 +186,7 @@ JsonStore.prototype = {
     },
 
     update: function update(path, data) {
-        var keys = this._keys;
+        var A = Array, O = Object;
         data = this._clone(data);
 
         var dir = path.split("."), key = dir.pop();
@@ -166,35 +199,62 @@ JsonStore.prototype = {
             var toObj = spec[0], toKey = spec[1], from = spec[2];
             var to = toObj[toKey], currentPath = spec[3];
 
-            if (to instanceof Array && from instanceof Array) {
+            if (to instanceof A && from instanceof A) {
                 toObj[toKey] = to.concat(from);
                 notify.push(currentPath);
             }
-            else if (from !== null && to !== null && typeof to == "object" && typeof from == "object") {
-                var properties = keys(from);
-                for (var i = 0, len = properties.length; i < len; i++) {
-                    var p = properties[i];
-                    queue.push([to, p, from[p], currentPath + "." + p]);
+            else if (to instanceof O && from instanceof O) {
+                for (var p in from) {
+                    if (from.hasOwnProperty(p)) {
+                        queue.push([to, p, from[p], currentPath + "." + p]);
+                    }
                 }
                 notify.push(currentPath);
             }
             else {
                 toObj[toKey] = from;
-                notifySubtree.push(currentPath);
+                (to instanceof O ? notifySubtree : notify).push(currentPath);
             }
         } while ((spec = queue.shift()));
 
-        this._notify(notifySubtree, notify);
-    },
+        this._notify(notifySubtree, path, notify);
+    }
 
-    update2: function update2(path, data) {
+    /*update2: function update2(path, data) {
         data = this._clone(data);
         var dir = path.split("."), key = dir.pop();
         dir = dir.length ? dir.join(".") : null;
 
         var notifications = {exact: [], subtree: []};
         this._update(this._get(dir, true), key, data, path, notifications);
+    }*/
+};
+
+/**
+ * Clones an object with `obj instanceof Object`.
+ *
+ * @param {Object} obj
+ * @returns {Object} An object cloned from obj
+ */
+JsonStore.prototype._clone.cloneObj = function cloneObj(obj) {
+    var O = Object;
+    if (obj instanceof Array) {
+        var theClone = [];
+        for (var i = 0, len = obj.length; i < len; i++) {
+            var value = obj[i];
+            theClone[i] = value instanceof O ? cloneObj(value) : value;
+        }
     }
+    else {
+        var theClone = {};
+        for (var key in obj) {
+            if (obj.hasOwnProperty(key)) {
+                var value = obj[key];
+                theClone[key] = value instanceof O ? cloneObj(value) : value;
+            }
+        }
+    }
+    return theClone;
 };
 
 JsonStore.prototype.SubStore.prototype = {
