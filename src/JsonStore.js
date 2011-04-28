@@ -9,13 +9,19 @@ JsonStore.prototype = {
         this._path = "." + path;
     },
 
+    /**
+     * Clones an object with `obj instanceof Object`.
+     *
+     * @param {Object} obj
+     * @returns {Object} An object cloned from obj
+     */
     _cloneObj: function _cloneObj(obj) {
+        var O = Object;
         if (obj instanceof Array) {
             var theClone = [];
             for (var i = 0, len = obj.length; i < len; i++) {
                 var value = obj[i];
-                theClone[i] = value !== null && typeof value === "object" ?
-                    _cloneObj(value) : value;
+                theClone[i] = value instanceof O ? _cloneObj(value) : value;
             }
         }
         else {
@@ -23,8 +29,7 @@ JsonStore.prototype = {
             for (var key in obj) {
                 if (obj.hasOwnProperty(key)) {
                     var value = obj[key];
-                    theClone[key] = value !== null && typeof value === "object" ?
-                        _cloneObj(value) : value;
+                    theClone[key] = value instanceof O ? _cloneObj(value) : value;
                 }
             }
         }
