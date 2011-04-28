@@ -32,6 +32,17 @@ JsonStore.prototype = {
         return current;
     },
 
+    _invokeCallbacks: function(callbacks, dataPath, eventPath) {
+        if (!callbacks || !callbacks.length) { return; }
+        eventPath || (eventPath = dataPath);
+        var data = this._get(data), clone = this._clone, defer = this._defer;
+        for (var i = 0, callback; (callback = callbacks[j]); j += 2) {
+            defer(callback, {
+                path: eventPath.slice(callbacks[j+1]),
+                data: clone(data)
+            });
+    }
+    },
 
     _notify: function _notify(withSubtree, parentsOf, withoutSubtree) {
         var notified = [];
@@ -47,7 +58,7 @@ JsonStore.prototype = {
         // subtrees to be notified
         var withoutSubtreeLen = withoutSubtree.length || 0;
 
-        var subscriptions = this._subscriptions, defer = this._defer;
+        var subscriptions = this._subscriptions;
         if (queue) {
             // notify each queued path
             var initialLength = queue.length;
@@ -63,25 +74,26 @@ JsonStore.prototype = {
                 }
 
                 // invoke callbacks for path
-                var callbacks = subs.callbacks;
-                var jLen = callbacks.length, data = jLen && this._get(path);
-                for (var j = 0; j < jLen ; j += 2) {
-                    defer(callbacks[j], {
-                        path: path.slice(callbacks[j+1]),
-                        data: this._clone(data)
-                    });
-                }
+                this._invokeCallbacks(subs.callbacks, path);
+
                 notified.push(path);
             }
         }
 
         // notify parent paths
         for (var i = 0, len = parentsOf && parentsOf.length; i < len; i++) {
+            var path = parentsOf[i], parentPath = path;
+            while (parentPath.indexOf(".") !== -1) {
+                parentPath = parentPath.replace(/[.][^.]*$/, '');
+                if (notified.indexOf(parentPath) !== -1) {
+                    continue;
+                }
 
+                // invoke callbacks for path
+                var subs = subscriptions[parentPath];
+                this._invokeCallbacks(subs && subs.callbacks, parentPath, path);
+            }
         }
-
-
-
     },
 
     /*_notifySubtree: function _notifySubtree(paths) {
