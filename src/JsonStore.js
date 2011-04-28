@@ -67,53 +67,55 @@ JsonStore.prototype = {
         }
     ),
 
-    _notify: function _notify(withSubtree, withoutSubtree) {
+    _notify: function _notify(withSubtree, parentsOf, withoutSubtree) {
         var notified = [];
-        var withSubtreeLen = withSubtree.length;
-        var queue = withSubtree.concat(withoutSubtree);
-        var subscriptions = this._subscriptions;
 
-        for (var path, i = 0; (path = queue.shift()) !== null; i++) {
-            // get subscriptions for path
-            var subs = subscriptions[currentPath];
-            if (!subs || notified.indexOf(path) !== -1) { continue; }
+        // The queue contains the paths without subtree notifiying first and
+        // paths with subtree notifying last
+        var queue = withoutSubtree;
+        queue = queue && withSubtree ?
+                queue.concat(withSubtree) :
+                withSubtree;
 
-            // enqueue children if subtree is to be notified
-            if (i < withSubtreeLen) {
-                queue.push.apply(queue, children);
-            }
+        // in the queue, indexes >= (length of paths without subtree) need their
+        // subtrees to be notified
+        var withoutSubtreeLen = withoutSubtree.length || 0;
 
-            // defer callbacks for path
-            var callbacks = subs.callbacks;
-            var jLen = callbacks.length, data = jLen && this._get(path);
-            for (var j = 0; j < jLen ; j += 2) {
-                this._defer(callbacks[j], {
-                    path: path.slice(callbacks[j+1]),
-                    data: this._clone(data)
-                });
-            }
-            notified.push(path);
+        var subscriptions = this._subscriptions, defer = this._defer;
+        if (queue) {
+            // notify each queued path
+            var initialLength = queue.length;
+            for (var path, i = 0; (path = queue.shift()) !== null; i++) {
+                // get subscriptions for path
+                var subs = subscriptions[currentPath];
+                if (!subs || notified.indexOf(path) !== -1) { continue; }
 
-            // invoke callbacks for parent paths, if necessary
-            var parentPath = path;
-            do {
-                parentPath = parentPath.replace(/[.][^.]*$/);
-                if (notified.indexOf(parentPath) !== -1) { break; }
+                // enqueue children if subtree is to be notified
+                var children;
+                if (i >= withoutSubtreeLen && (children = subs.children)) {
+                    queue = queue.concat(children);
+                }
 
-                var subs = subscriptions[parentPath];
-                var callbacks = subs && subs.callbacks;
-                var jLen = callbacks && callbacks.length;
-                var data = jLen && this._get(parentPath);
-                for (var j = 0; j < jLen; j += 2) {
-                    this._defer(callbacks[j], {
+                // invoke callbacks for path
+                var callbacks = subs.callbacks;
+                var jLen = callbacks.length, data = jLen && this._get(path);
+                for (var j = 0; j < jLen ; j += 2) {
+                    defer(callbacks[j], {
                         path: path.slice(callbacks[j+1]),
                         data: this._clone(data)
                     });
                 }
-
-                notified.push(parentPath);
-            } while (parentPath.indexOf(".") !== -1);
+                notified.push(path);
+            }
         }
+
+        // notify parent paths
+        for (var i = 0, len = parentsOf && parentsOf.length; i < len; i++) {
+
+        }
+
+
+
     },
 
     /*_notifySubtree: function _notifySubtree(paths) {
@@ -160,21 +162,22 @@ JsonStore.prototype = {
         }
         var subscriptions = this._subscriptions, undef;
 
-        var segments = path.split("."), currentPath = path, lastSegment;
+        var segments = path.split("."), currentPath = path, lastPath;
         while (segments.length && !subscriptions.hasOwnProperty(currentPath)) {
             subscriptions[currentPath] = {
                 callbacks: [],
-                children: lastSegment ? [lastSegment] : []
+                children: lastPath ? [lastPath] : []
             };
 
-            lastSegment = segments.pop();
+            lastPath = currentPath;
+            segments.pop();
             currentPath = segments.join(".");
         }
 
-        if (lastSegment != null && segments.length) {
+        if (lastPath != null && segments.length) {
             var children = subscriptions[currentPath].children;
-            if (children.indexOf(lastSegment) === -1) {
-                children.push(lastSegment);
+            if (children.indexOf(lastPath) === -1) {
+                children.push(lastPath);
             }
         }
 
