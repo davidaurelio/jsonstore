@@ -9,35 +9,8 @@ JsonStore.prototype = {
         this._path = "." + path;
     },
 
-    /**
-     * Clones an object with `obj instanceof Object`.
-     *
-     * @param {Object} obj
-     * @returns {Object} An object cloned from obj
-     */
-    _cloneObj: function _cloneObj(obj) {
-        var O = Object;
-        if (obj instanceof Array) {
-            var theClone = [];
-            for (var i = 0, len = obj.length; i < len; i++) {
-                var value = obj[i];
-                theClone[i] = value instanceof O ? _cloneObj(value) : value;
-            }
-        }
-        else {
-            var theClone = {};
-            for (var key in obj) {
-                if (obj.hasOwnProperty(key)) {
-                    var value = obj[key];
-                    theClone[key] = value instanceof O ? _cloneObj(value) : value;
-                }
-            }
-        }
-        return theClone;
-    },
-
     _clone: function _clone(obj) {
-        return this._cloneObj({o: obj}).o;
+        return _clone.cloneObj({o: obj}).o;
     },
 
     _defer: function(func, param) {
@@ -237,6 +210,33 @@ JsonStore.prototype = {
         var notifications = {exact: [], subtree: []};
         this._update(this._get(dir, true), key, data, path, notifications);
     }*/
+};
+
+/**
+ * Clones an object with `obj instanceof Object`.
+ *
+ * @param {Object} obj
+ * @returns {Object} An object cloned from obj
+ */
+JsonStore.prototype._clone.cloneObj = function cloneObj(obj) {
+    var O = Object;
+    if (obj instanceof Array) {
+        var theClone = [];
+        for (var i = 0, len = obj.length; i < len; i++) {
+            var value = obj[i];
+            theClone[i] = value instanceof O ? cloneObj(value) : value;
+        }
+    }
+    else {
+        var theClone = {};
+        for (var key in obj) {
+            if (obj.hasOwnProperty(key)) {
+                var value = obj[key];
+                theClone[key] = value instanceof O ? cloneObj(value) : value;
+            }
+        }
+    }
+    return theClone;
 };
 
 JsonStore.prototype.SubStore.prototype = {
