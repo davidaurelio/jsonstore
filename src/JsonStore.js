@@ -130,8 +130,13 @@ JsonStore.prototype = {
     set: function set(path, value) {
         var dir = path.split("."), key = dir.pop();
         dir = dir.length ? dir.join(".") : null;
-        this._get(dir, true)[key] = this._clone(value);
-        this._notify([path]);
+
+        var currentData = this._get(dir, true);
+        var notifications = [];
+        notifications[currentData[key] instanceof Object ? 0 : 1] = path;
+        currentData[key] = this._clone(value);
+
+        this._notify(notifications[0], path, notifications[1]);
     },
 
     subscribe: function subscribe(path, callback, _cutLeadingChars) {
@@ -181,6 +186,7 @@ JsonStore.prototype = {
     },
 
     update: function update(path, data) {
+        var A = Array, O = Object;
         data = this._clone(data);
 
         var dir = path.split("."), key = dir.pop();
@@ -193,7 +199,7 @@ JsonStore.prototype = {
             var toObj = spec[0], toKey = spec[1], from = spec[2];
             var to = toObj[toKey], currentPath = spec[3];
 
-            if (to instanceof Array && from instanceof Array) {
+            if (to instanceof A && from instanceof A) {
                 toObj[toKey] = to.concat(from);
                 notify.push(currentPath);
             }
@@ -207,11 +213,11 @@ JsonStore.prototype = {
             }
             else {
                 toObj[toKey] = from;
-                notifySubtree.push(currentPath);
+                (to instanceof O ? notifySubtree : notify).push(currentPath);
             }
         } while ((spec = queue.shift()));
 
-        this._notify(notifySubtree, notify);
+        this._notify(notifySubtree, path, notify);
     }
 
     /*update2: function update2(path, data) {
