@@ -59,18 +59,6 @@ JsonStore.prototype = {
         return current;
     },
 
-    _keys: (Object.keys ?
-        Object.keys :
-        function _keys(obj) {
-            var keys = [], i = 0;
-            for (var key in obj) {
-                if (obj.hasOwnProperty(key)) {
-                    keys[i++] = key;
-                }
-            }
-            return keys;
-        }
-    ),
 
     _notify: function _notify(withSubtree, parentsOf, withoutSubtree) {
         var notified = [];
@@ -208,7 +196,6 @@ JsonStore.prototype = {
     },
 
     update: function update(path, data) {
-        var keys = this._keys;
         data = this._clone(data);
 
         var dir = path.split("."), key = dir.pop();
@@ -225,11 +212,11 @@ JsonStore.prototype = {
                 toObj[toKey] = to.concat(from);
                 notify.push(currentPath);
             }
-            else if (from !== null && to !== null && typeof to == "object" && typeof from == "object") {
-                var properties = keys(from);
-                for (var i = 0, len = properties.length; i < len; i++) {
-                    var p = properties[i];
-                    queue.push([to, p, from[p], currentPath + "." + p]);
+            else if (to instanceof O && from instanceof O) {
+                for (var p in from) {
+                    if (from.hasOwnProperty(p)) {
+                        queue.push([to, p, from[p], currentPath + "." + p]);
+                    }
                 }
                 notify.push(currentPath);
             }
