@@ -139,6 +139,10 @@ JsonStore.prototype = {
         return new this.SubStore(this, path);
     },
 
+    fill: function fill(path, data) {
+        this._mixin(path, data, false);
+    },
+
     set: function set(path, value) {
         var dir = path.split("."), key = dir.pop();
         dir = dir.length ? dir.join(".") : null;
@@ -230,6 +234,10 @@ JsonStore.prototype._clone.cloneObj = function cloneObj(obj) {
 };
 
 JsonStore.prototype.SubStore.prototype = {
+    fill: function(path, data) {
+        return this._store.fill(this._path + path, data);
+    },
+
     set: function(path, value) {
         return this._store.set(this._path + path, value);
     },
