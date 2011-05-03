@@ -17,6 +17,45 @@ JsonStore.prototype = {
         setTimeout(function() { func(param); }, 0);
     },
 
+    _mixin: function _mixin(path, data, overwrite) {
+        var A = Array, O = Object;
+        data = this._clone(data);
+
+        var dir = path.split("."), key = dir.pop();
+        dir = dir.length ? dir.join(".") : null;
+        var queue = [], spec = [this._get(dir, true), key, data, path];
+
+        var notify = [], notifySubtree = [];
+
+        do {
+            var toObj = spec[0], toKey = spec[1], from = spec[2];
+            var to = toObj[toKey], currentPath = spec[3];
+
+            if (to instanceof A) {
+                if (overwrite) {
+                    toObj[toKey] = from instanceof A ? to.concat(from) : from;
+                    notify.push(currentPath);
+                }
+            }
+            else if (to instanceof O && from instanceof O) {
+                for (var p in from) {
+                    if (from.hasOwnProperty(p)) {
+                        queue.push([to, p, from[p], currentPath + "." + p]);
+                    }
+                }
+                notify.push(currentPath);
+            }
+            else if (overwrite || !toObj.hasOwnProperty(toKey)) {
+                toObj[toKey] = from;
+                (to instanceof O || from instanceof O ?
+                    notifySubtree : notify
+                ).push(currentPath);
+            }
+        } while ((spec = queue.shift()));
+
+        this._notify(notifySubtree, path, notify);
+    },
+
     _get: function _get(path, create) {
         if (path == null) { return this._data; }
         var segments = path.split("."), current = this._data;
@@ -159,38 +198,7 @@ JsonStore.prototype = {
     },
 
     update: function update(path, data) {
-        var A = Array, O = Object;
-        data = this._clone(data);
-
-        var dir = path.split("."), key = dir.pop();
-        dir = dir.length ? dir.join(".") : null;
-        var queue = [], spec = [this._get(dir, true), key, data, path];
-
-        var notify = [], notifySubtree = [];
-
-        do {
-            var toObj = spec[0], toKey = spec[1], from = spec[2];
-            var to = toObj[toKey], currentPath = spec[3];
-
-            if (to instanceof A && from instanceof A) {
-                toObj[toKey] = to.concat(from);
-                notify.push(currentPath);
-            }
-            else if (to instanceof O && from instanceof O) {
-                for (var p in from) {
-                    if (from.hasOwnProperty(p)) {
-                        queue.push([to, p, from[p], currentPath + "." + p]);
-                    }
-                }
-                notify.push(currentPath);
-            }
-            else {
-                toObj[toKey] = from;
-                (to instanceof O ? notifySubtree : notify).push(currentPath);
-            }
-        } while ((spec = queue.shift()));
-
-        this._notify(notifySubtree, path, notify);
+        this._mixin(path, data, true);
     }
 };
 
