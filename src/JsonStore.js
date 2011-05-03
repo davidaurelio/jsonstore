@@ -96,33 +96,6 @@ JsonStore.prototype = {
         }
     },
 
-    /*_notifySubtree: function _notifySubtree(paths) {
-        var subscriptions = this._subscriptions;
-        for (var i = 0, iLen = paths.length; i < iLen; i++) {
-            var path;
-        }
-    },*/
-
-    /*_update: function _update(toObj, toKey, from, path) {
-        var notifiyPaths = [];
-        var to = toObj[toKey];
-
-        if (to instanceof Array && from instanceof Array) {
-            toObj[toKey] = to.concat(from);
-            notifications.exact.push(path);
-        }
-        else if (from !== null && to !== null && typeof to == "object" && typeof from == "object") {
-            for (var key in from) {
-                if (from.hasOwnProperty(key)) {
-                    _update(to, key, from[key], path + "." + key, notifications)
-                }
-            }
-        }
-        else {
-            toObj[toKey] = from;
-            notifications.subtree.push(path);
-        }
-    }, */
     getSubStore: function(path) {
         return new this.SubStore(this, path);
     },
@@ -219,15 +192,6 @@ JsonStore.prototype = {
 
         this._notify(notifySubtree, path, notify);
     }
-
-    /*update2: function update2(path, data) {
-        data = this._clone(data);
-        var dir = path.split("."), key = dir.pop();
-        dir = dir.length ? dir.join(".") : null;
-
-        var notifications = {exact: [], subtree: []};
-        this._update(this._get(dir, true), key, data, path, notifications);
-    }*/
 };
 
 /**
