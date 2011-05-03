@@ -228,7 +228,7 @@ JsonStore.prototype.SubStore.prototype = {
 
     subscribe: function(path, callback) {
         var p = this._path, l = p.length;
-        return this._store.subscribe(p, callback, l);
+        return this._store.subscribe(p + path, callback, l);
     },
 
     unsubscribe: function(path, callback) {
