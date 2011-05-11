@@ -188,7 +188,7 @@ JsonStore.prototype = {
         }
 
         var data = this._clone(this._get(path));
-        setTimeout(function() { callback(data) }, 0);
+        callback(data);
     },
 
     unsubscribe: function unsubscribe(path, callback) {
