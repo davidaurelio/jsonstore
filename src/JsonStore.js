@@ -75,10 +75,12 @@ JsonStore.prototype = {
         if (!callbacks || !callbacks.length) { return; }
         eventPath || (eventPath = dataPath);
         var data = this._get(data), clone = this._clone, defer = this._defer;
-        for (var i = 0, callback; (callback = callbacks[j]); j += 2) {
+        for (var i = 0, callback; (callback = callbacks[j]); j += 3) {
             defer(callback, {
-                path: eventPath.slice(callbacks[j+1]),
-                data: clone(data)
+                data: clone(data),
+                handle: callbacks[j+1],
+                path: eventPath.slice(callbacks[j+2]),
+                store: this
             });
     }
     },
@@ -155,7 +157,7 @@ JsonStore.prototype = {
         this._notify(notifications[0], path, notifications[1]);
     },
 
-    subscribe: function subscribe(path, callback, _cutLeadingChars) {
+    subscribe: function subscribe(path, callback, handle, _cutLeadingChars) {
         if (typeof callback !== "function") {
             throw Error("Only functions supported");
         }
@@ -182,7 +184,7 @@ JsonStore.prototype = {
 
         var callbacks = subscriptions[path].callbacks;
         if (callbacks.indexOf(callback) === -1) {
-            callbacks.push(callback, _cutLeadingChars);
+            callbacks.push(callback, handle, _cutLeadingChars);
         }
 
         var data = this._clone(this._get(path));
@@ -197,7 +199,7 @@ JsonStore.prototype = {
         var callbacks = subscription && subscription.callbacks;
         var idx = callbacks && callbacks.indexOf(callback) || -1;
         if (idx !== -1) {
-            callbacks.splice(idx, 2);
+            callbacks.splice(idx, 3);
         }
     },
 
@@ -242,9 +244,9 @@ JsonStore.prototype.SubStore.prototype = {
         return this._store.set(this._path + path, value);
     },
 
-    subscribe: function(path, callback) {
+    subscribe: function(path, callback, handle) {
         var p = this._path, l = p.length;
-        return this._store.subscribe(p + path, callback, l);
+        return this._store.subscribe(p + path, callback, handle, l);
     },
 
     unsubscribe: function(path, callback) {
