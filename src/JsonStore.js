@@ -77,10 +77,12 @@ JsonStore.prototype = {
         eventPath || (eventPath = dataPath);
         var data = this._get(data), clone = this._clone, defer = this._defer;
         for (var i = 0, callback; (callback = callbacks[j]); j += 3) {
+            var cutoff = callbacks[j+2];
+            var path = cutoff > eventPath.length ? null : eventPath.slice(callbacks[j+2]);
             defer(callback, {
                 data: clone(data),
                 handle: callbacks[j+1],
-                path: eventPath.slice(callbacks[j+2]),
+                path: path,
                 store: this
             });
         }
@@ -259,7 +261,8 @@ JsonStore.prototype.SubStore.prototype = {
 
     subscribe: function(path, callback, handle) {
         var p = this._path, l = p.length;
-        return this._store.subscribe(p + path, callback, handle, l);
+        path = path == null ? a.slice(0, -1) : p + path;
+        return this._store.subscribe(path, callback, handle, l);
     },
 
     unsubscribe: function(path, callback) {
