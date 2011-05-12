@@ -1,6 +1,7 @@
 function JsonStore() {
     this._data = {};
     this._subscriptions = {};
+    this._globalSubscriptions = [];
 }
 
 JsonStore.prototype = {
@@ -82,7 +83,7 @@ JsonStore.prototype = {
                 path: eventPath.slice(callbacks[j+2]),
                 store: this
             });
-    }
+        }
     },
 
     _notify: function _notify(withSubtree, parentsOf, withoutSubtree) {
@@ -161,28 +162,35 @@ JsonStore.prototype = {
         if (typeof callback !== "function") {
             throw Error("Only functions supported");
         }
-        var subscriptions = this._subscriptions, undef;
 
-        var segments = path.split("."), currentPath = path, lastPath;
-        while (segments.length && !subscriptions.hasOwnProperty(currentPath)) {
-            subscriptions[currentPath] = {
-                callbacks: [],
-                children: lastPath ? [lastPath] : []
-            };
-
-            lastPath = currentPath;
-            segments.pop();
-            currentPath = segments.join(".");
+        if (path == null) {
+            var callbacks = this._globalSubscriptions;
         }
+        else {
+            var subscriptions = this._subscriptions, undef;
 
-        if (lastPath != null && segments.length) {
-            var children = subscriptions[currentPath].children;
-            if (children.indexOf(lastPath) === -1) {
-                children.push(lastPath);
+            var segments = path.split("."), currentPath = path, lastPath;
+            while (segments.length && !subscriptions.hasOwnProperty(currentPath)) {
+                subscriptions[currentPath] = {
+                    callbacks: [],
+                    children: lastPath ? [lastPath] : []
+                };
+
+                lastPath = currentPath;
+                segments.pop();
+                currentPath = segments.join(".");
             }
+
+            if (lastPath != null && segments.length) {
+                var children = subscriptions[currentPath].children;
+                if (children.indexOf(lastPath) === -1) {
+                    children.push(lastPath);
+                }
+            }
+
+            var callbacks = subscriptions[path].callbacks;
         }
 
-        var callbacks = subscriptions[path].callbacks;
         if (callbacks.indexOf(callback) === -1) {
             callbacks.push(callback, handle, _cutLeadingChars);
         }
@@ -195,8 +203,13 @@ JsonStore.prototype = {
         if (typeof callback !== "function") {
             throw Error("Only functions supported");
         }
-        var subscription = this._subscriptions[path];
-        var callbacks = subscription && subscription.callbacks;
+        if (path == null) {
+            var callbacks = this._globalSubscriptions;
+        }
+        else {
+            var subscription = this._subscriptions[path];
+            var callbacks = subscription && subscription.callbacks;
+        }
         var idx = callbacks && callbacks.indexOf(callback) || -1;
         if (idx !== -1) {
             callbacks.splice(idx, 3);
