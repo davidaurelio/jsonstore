@@ -7,7 +7,7 @@ function JsonStore() {
 JsonStore.prototype = {
     SubStore: function SubStore(store, path) {
         this._store = store;
-        this._path = "." + path;
+        this._path = path + ".";
     },
 
     _clone: function _clone(obj) {
@@ -60,7 +60,7 @@ JsonStore.prototype = {
     _get: function _get(path, create) {
         if (path == null) { return this._data; }
         var segments = path.split("."), current = this._data;
-        for (var i = 0, len = path.length; i < len; i++) {
+        for (var i = 0, len = segments.length; i < len; i++) {
             var last = current, s = segments[i];
             current = current[s];
             if (typeof current !== "object" || current === null) {
@@ -75,13 +75,19 @@ JsonStore.prototype = {
     _invokeCallbacks: function(callbacks, dataPath, eventPath) {
         if (!callbacks || !callbacks.length) { return; }
         eventPath || (eventPath = dataPath);
-        var data = this._get(data), clone = this._clone, defer = this._defer;
-        for (var i = 0, callback; (callback = callbacks[j]); j += 3) {
-            var cutoff = callbacks[j+2];
-            var path = cutoff > eventPath.length ? null : eventPath.slice(callbacks[j+2]);
+        var data = this._get(dataPath), clone = this._clone, defer = this._defer;
+        for (var i = 0, callback; (callback = callbacks[i]); i += 3) {
+            var cutoff = callbacks[i+2];
+            var path;
+            if (eventPath == null || cutoff > (eventPath && eventPath.length)) {
+                path = null
+            }
+            else {
+                path = eventPath.slice(cutoff);
+            }
             defer(callback, {
                 data: clone(data),
-                handle: callbacks[j+1],
+                handle: callbacks[i+1],
                 path: path,
                 store: this
             });
@@ -94,9 +100,7 @@ JsonStore.prototype = {
         // The queue contains the paths without subtree notifiying first and
         // paths with subtree notifying last
         var queue = withoutSubtree;
-        queue = queue && withSubtree ?
-                queue.concat(withSubtree) :
-                withSubtree;
+        queue = queue ? withSubtree && queue.concat(withSubtree) || queue : withSubtree;
 
         // in the queue, indexes >= (length of paths without subtree) need their
         // subtrees to be notified
@@ -106,9 +110,9 @@ JsonStore.prototype = {
         if (queue) {
             // notify each queued path
             var initialLength = queue.length;
-            for (var path, i = 0; (path = queue.shift()) !== null; i++) {
+            for (var path, i = 0; (path = queue.shift()) != null; i++) {
                 // get subscriptions for path
-                var subs = subscriptions[currentPath];
+                var subs = subscriptions[path];
                 if (!subs || notified.indexOf(path) !== -1) { continue; }
 
                 // enqueue children if subtree is to be notified
@@ -137,6 +141,7 @@ JsonStore.prototype = {
                 var subs = subscriptions[parentPath];
                 this._invokeCallbacks(subs && subs.callbacks, parentPath, path);
             }
+            this._invokeCallbacks(this._globalSubscriptions, null, path);
         }
     },
 
@@ -157,7 +162,10 @@ JsonStore.prototype = {
         notifications[currentData[key] instanceof Object ? 0 : 1] = path;
         currentData[key] = this._clone(value);
 
-        this._notify(notifications[0], path, notifications[1]);
+        var withSubtree = notifications[0], withoutSubtree = notifications[1];
+        this._notify(withSubtree != null && [withSubtree],
+                     [path],
+                     withoutSubtree != null && [withoutSubtree]);
     },
 
     subscribe: function subscribe(path, callback, handle, _cutLeadingChars) {
@@ -197,8 +205,7 @@ JsonStore.prototype = {
             callbacks.push(callback, handle, _cutLeadingChars);
         }
 
-        var data = this._clone(this._get(path));
-        callback(data);
+        this._invokeCallbacks([callback, handle, _cutLeadingChars], path);
     },
 
     unsubscribe: function unsubscribe(path, callback) {
@@ -261,7 +268,7 @@ JsonStore.prototype.SubStore.prototype = {
 
     subscribe: function(path, callback, handle) {
         var p = this._path, l = p.length;
-        path = path == null ? a.slice(0, -1) : p + path;
+        path = path == null ? p.slice(0, -1) : p + path;
         return this._store.subscribe(path, callback, handle, l);
     },
 
