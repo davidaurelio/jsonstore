@@ -15,7 +15,9 @@ JsonStore.prototype = {
     },
 
     _defer: function(func, param) {
-        setTimeout(function() { func(param); }, 0);
+        setTimeout(function() {
+            func(param);
+        }, 0);
     },
 
     _mixin: function _mixin(path, data, overwrite) {
