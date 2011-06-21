@@ -219,12 +219,12 @@ JsonStore.prototype.SubStore.prototype = {
 
     sub: function(path, callback, handle) {
         var p = this._path, l = p.length;
-        return this._store.subscribe(path == null ? p : p + "." + path, callback, handle, l + 1);
+        return this._store.sub(path == null ? p : p + "." + path, callback, handle, l + 1);
     },
 
     unsub: function(path, callback) {
         var p = this._path;
-        return this._store.unsubscribe(path == null ? p : p + "." + path, callback);
+        return this._store.unsub(path == null ? p : p + "." + path, callback);
     },
 
     update: function(path, data) {
