@@ -5,28 +5,13 @@ function JsonStore() {
 }
 
 JsonStore.prototype = {
-    SubStore: function SubStore(store, path) {
-        this._store = store;
-        this._path = path + ".";
-    },
-
-    _clone: function _clone(obj) {
-        return _clone.cloneObj({o: obj}).o;
-    },
-
-    _defer: function(func, param) {
-        setTimeout(function() {
-            func(param);
-        }, 0);
-    },
-
     _mixin: function _mixin(path, data, overwrite) {
         var A = Array, O = Object;
-        data = this._clone(data);
+        data = salt.clone(data);
 
         var dir = path.split("."), key = dir.pop();
         dir = dir.length ? dir.join(".") : null;
-        var queue = [], spec = [this._get(dir, true), key, data, path];
+        var queue = [], spec = [salt.keypath(this._data, dir, true), key, data, path];
 
         var notify = [], notifySubtree = [];
 
@@ -59,25 +44,10 @@ JsonStore.prototype = {
         this._notify(notifySubtree, path, notify);
     },
 
-    _get: function _get(path, create) {
-        if (path == null) { return this._data; }
-        var segments = path.split("."), current = this._data;
-        for (var i = 0, len = segments.length; i < len; i++) {
-            var last = current, s = segments[i];
-            current = current[s];
-            if (typeof current !== "object" || current === null) {
-                if (create) { current = last[s] = {}; }
-                else { break; }
-            }
-        }
-
-        return current;
-    },
-
     _invokeCallbacks: function(callbacks, dataPath, eventPath) {
         if (!callbacks || !callbacks.length) { return; }
         eventPath || (eventPath = dataPath);
-        var data = this._get(dataPath), clone = this._clone, defer = this._defer;
+        var data = salt.keypath(this._data, dataPath), clone = salt.clone, defer = salt.defer;
         for (var i = 0, callback; (callback = callbacks[i]); i += 3) {
             var cutoff = callbacks[i+2];
             var path;
@@ -147,7 +117,7 @@ JsonStore.prototype = {
         }
     },
 
-    getSubStore: function(path) {
+    substore: function(path) {
         return new this.SubStore(this, path);
     },
 
@@ -159,10 +129,10 @@ JsonStore.prototype = {
         var dir = path.split("."), key = dir.pop();
         dir = dir.length ? dir.join(".") : null;
 
-        var currentData = this._get(dir, true);
+        var currentData = salt.keypath(this._data, dir, true);
         var notifications = [];
         notifications[currentData[key] instanceof Object ? 0 : 1] = path;
-        currentData[key] = this._clone(value);
+        currentData[key] = salt.clone(value);
 
         var withSubtree = notifications[0], withoutSubtree = notifications[1];
         this._notify(withSubtree != null && [withSubtree],
@@ -170,7 +140,7 @@ JsonStore.prototype = {
                      withoutSubtree != null && [withoutSubtree]);
     },
 
-    subscribe: function subscribe(path, callback, handle, _cutLeadingChars) {
+    sub: function subscribe(path, callback, handle, _cutLeadingChars) {
         if (typeof callback !== "function") {
             throw Error("Only functions supported");
         }
@@ -210,7 +180,7 @@ JsonStore.prototype = {
         this._invokeCallbacks([callback, handle, _cutLeadingChars], path);
     },
 
-    unsubscribe: function unsubscribe(path, callback) {
+    unsub: function unsubscribe(path, callback) {
         if (typeof callback !== "function") {
             throw Error("Only functions supported");
         }
@@ -229,56 +199,36 @@ JsonStore.prototype = {
 
     update: function update(path, data) {
         this._mixin(path, data, true);
-    }
-};
+    },
 
-/**
- * Clones an object with `obj instanceof Object`.
- *
- * @param {Object} obj
- * @returns {Object} An object cloned from obj
- */
-JsonStore.prototype._clone.cloneObj = function cloneObj(obj) {
-    var O = Object;
-    if (obj instanceof Array) {
-        var theClone = [];
-        for (var i = 0, len = obj.length; i < len; i++) {
-            var value = obj[i];
-            theClone[i] = value instanceof O ? cloneObj(value) : value;
-        }
+    SubStore: function SubStore(store, path) {
+        this._store = store;
+        this._path = path;
     }
-    else {
-        var theClone = {};
-        for (var key in obj) {
-            if (obj.hasOwnProperty(key)) {
-                var value = obj[key];
-                theClone[key] = value instanceof O ? cloneObj(value) : value;
-            }
-        }
-    }
-    return theClone;
 };
 
 JsonStore.prototype.SubStore.prototype = {
     fill: function(path, data) {
-        return this._store.fill(this._path + path, data);
+        return this._store.fill(this._path + "." + path, data);
     },
 
     set: function(path, value) {
-        return this._store.set(this._path + path, value);
+        var p = this._path;
+        return this._store.set(path == null ? p : p + "." + path, value);
     },
 
-    subscribe: function(path, callback, handle) {
+    sub: function(path, callback, handle) {
         var p = this._path, l = p.length;
-        path = path == null ? p.slice(0, -1) : p + path;
-        return this._store.subscribe(path, callback, handle, l);
+        return this._store.subscribe(path == null ? p : p + "." + path, callback, handle, l + 1);
     },
 
-    unsubscribe: function(path, callback) {
-        return this._store.unsubscribe(this._path + path, callback);
+    unsub: function(path, callback) {
+        var p = this._path;
+        return this._store.unsubscribe(path == null ? p : p + "." + path, callback);
     },
 
     update: function(path, data) {
-        return this._store.update(this._path + path, data);
+        var p = this._path;
+        return this._store.update(path == null ? p : p + "." + path, data);
     }
 };
